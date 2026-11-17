@@ -1,0 +1,573 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Password Typing Study</title>
+<style>
+  /* Single narrow column, plain form styling (matches the multi-day collection page). */
+  :root {
+    --ink: #222; --muted: #444; --faint: #888; --line: #ccc; --track: #ddd;
+    --green: #2e7d5b; --green-dark: #1a4d3a; --green-soft: #a9c4bb;
+    --red: #b3261e; --amber: #8a5a00; --code: #f0f0f0; --bg: #ffffff;
+    color-scheme: light;
+  }
+  html { background: var(--bg); }
+  body {
+    font-family: Arial, Helvetica, sans-serif;
+    max-width: 480px;
+    margin: 60px auto;
+    padding: 0 20px;
+    color: var(--ink);
+    background: var(--bg);
+  }
+  h1 { font-size: 1.3rem; margin-bottom: 4px; }
+  h2 { font-size: 1.05rem; margin: 36px 0 4px; }
+  p.desc { color: var(--muted); line-height: 1.5; }
+  ul.steps { color: var(--muted); line-height: 1.5; padding-left: 1.2em; margin: 8px 0; }
+  label { display: block; margin-top: 18px; font-weight: bold; font-size: 0.9rem; }
+  input, textarea { width: 100%; padding: 8px; font-size: 1rem; margin-top: 4px; box-sizing: border-box;
+                    border: 1px solid #999; border-radius: 3px; color: var(--ink); background: #fff; }
+  input:disabled { background: #f5f5f5; }
+  input:focus-visible, button:focus-visible, textarea:focus-visible { outline: 2px solid var(--green); outline-offset: 2px; }
+  .progress { margin-top: 20px; font-size: 0.95rem; }
+  .bar-track { height: 10px; background: var(--track); border-radius: 6px; overflow: hidden; margin-top: 6px; }
+  .bar-fill { height: 100%; width: 0%; background: var(--green); transition: width 0.2s; }
+  .feedback { margin-top: 10px; min-height: 20px; font-size: 0.9rem; line-height: 1.4; }
+  .feedback.ok { color: var(--green); }
+  .feedback.err { color: var(--red); }
+  .feedback.warn { color: var(--amber); }
+  .feedback.done { color: var(--green-dark); font-weight: bold; }
+  .feedback.info { color: var(--muted); }
+  code { background: var(--code); padding: 2px 5px; border-radius: 3px; }
+  .actions { display: flex; gap: 10px; margin-top: 20px; flex-wrap: wrap; }
+  button {
+    font: inherit; padding: 10px 16px; border-radius: 4px; border: none;
+    font-weight: bold; cursor: pointer;
+  }
+  button.primary { background: var(--green); color: #fff; flex: 1; }
+  button.primary:disabled { background: var(--green-soft); cursor: not-allowed; }
+  button.secondary { background: transparent; border: 1px solid var(--line); color: #555; }
+  .note { font-size: 0.78rem; color: var(--faint); margin-top: 4px; line-height: 1.4; }
+  .store { font-size: 0.85rem; margin-top: 8px; }
+  .store.ok { color: var(--green); }
+  .store.warn { color: var(--amber); }
+  .store.info { color: var(--faint); }
+  textarea { font: 0.75rem ui-monospace, Menlo, Consolas, monospace; min-height: 110px; }
+  table { border-collapse: collapse; width: 100%; font-size: 0.9rem; margin-top: 8px; }
+  th, td { text-align: left; padding: 6px 4px; border-bottom: 1px solid #e5e5e5; }
+  th { color: var(--muted); }
+  .hidden { display: none !important; }
+  @media (prefers-reduced-motion: reduce) { .bar-fill { transition: none; } }
+</style>
+</head>
+<body>
+
+<h1>Typing Pattern Collection</h1>
+<p class="desc"><strong>This page requires you to key in the password 100 times over one week:
+  20 times per session, 5 sessions, each on a different day.</strong><br>
+  This captures how your typing changes over the week. Type the password below exactly, press Enter,
+  and repeat until you reach 20. Then press <strong>Submit session</strong> and come back on another day.</p>
+<ul class="steps">
+  <li>Use your own username, and the same one every session.</li>
+  <li>The password is the same for everyone. The R is a capital: hold Shift for it.</li>
+  <li>If you make a mistake, that attempt is not counted. Just type it again.</li>
+</ul>
+<p class="note">Only your username, the session dates and the key timings (how long each key is held and the
+  gaps between keys) are recorded. Use a physical keyboard, and the same device each session if you can.</p>
+
+<label for="username">Username</label>
+<input type="text" id="username" maxlength="30" autocomplete="off" spellcheck="false" placeholder="e.g. johndoe">
+<p class="store info" id="storage-note">Checking where your typings will be saved…</p>
+
+<label for="pw">Password — type exactly: <code>.tie5Roanl</code></label>
+<input type="text" id="pw" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" placeholder="Click here after entering your username">
+
+<div class="progress">
+  <span id="dayLabel">Session — , Number of records: </span><strong id="count">0 / 20</strong>
+  <div class="bar-track"><div class="bar-fill" id="barFill"></div></div>
+  <div class="note" id="sessions">Sessions completed: 0 of 5</div>
+</div>
+
+<div class="feedback info" id="feedback" role="status" aria-live="polite">Enter your username to begin.</div>
+
+<div class="actions">
+  <button class="primary" id="submit" type="button" disabled>Submit session</button>
+  <button class="secondary" id="restart" type="button">Restart session</button>
+</div>
+
+<section id="export-card" class="hidden">
+  <h2>Send your typings</h2>
+  <p class="desc" id="export-msg">This page could not save to the study database for you. Please download
+    the file below (or copy it) and send it to the researcher.</p>
+  <div class="actions">
+    <button class="primary" id="dl-mine" type="button">Download my CSV</button>
+    <button class="secondary" id="copy-mine" type="button">Copy</button>
+  </div>
+  <textarea id="csv-mine" readonly aria-label="Your typings as CSV"></textarea>
+</section>
+
+<section id="owner-card" class="hidden">
+  <h2>Researcher view</h2>
+  <p class="note">Only you see this. Same columns as DSL-StrongPasswordData: subject, sessionIndex, rep, then the 31 timings.</p>
+  <table>
+    <thead><tr><th>Username</th><th>Sessions</th><th>Records</th><th>Last session</th></tr></thead>
+    <tbody id="owner-rows"><tr><td colspan="4">Loading…</td></tr></tbody>
+  </table>
+  <div class="actions">
+    <button class="primary" id="dl-all" type="button">Download all (CSV)</button>
+    <button class="secondary" id="copy-all" type="button">Copy all</button>
+  </div>
+  <textarea id="csv-all" readonly aria-label="All typings as CSV"></textarea>
+</section>
+
+<script>
+/* ------------------------------------------------------------------
+   Study settings
+   ------------------------------------------------------------------ */
+const REPS_PER_SESSION = 20;
+const SESSIONS = 5;
+const MIN_HOURS_BETWEEN = 12;      // soft warning only
+// The CMU password (Killourhy & Maxion, DSL-StrongPasswordData) and the
+// CMU names for each key, in order.
+const SEQ = [
+  { key: ".",     name: "period" },
+  { key: "t",     name: "t" },
+  { key: "i",     name: "i" },
+  { key: "e",     name: "e" },
+  { key: "5",     name: "five" },
+  { key: "R",     name: "Shift.r" },
+  { key: "o",     name: "o" },
+  { key: "a",     name: "a" },
+  { key: "n",     name: "n" },
+  { key: "l",     name: "l" },
+  { key: "Enter", name: "Return" },
+];
+const PASSWORD = ".tie5Roanl";
+// CMU column order: H.k1, DD.k1.k2, UD.k1.k2, H.k2, ... , H.Return
+const FEATURES = [];
+SEQ.forEach((k, i) => {
+  FEATURES.push(`H.${k.name}`);
+  if (i < SEQ.length - 1) {
+    FEATURES.push(`DD.${k.name}.${SEQ[i + 1].name}`);
+    FEATURES.push(`UD.${k.name}.${SEQ[i + 1].name}`);
+  }
+});
+const CSV_HEADER = ["subject", "sessionIndex", "rep", ...FEATURES];
+
+/* Turn key-down / key-up times (milliseconds) into the 31 CMU timings (seconds).
+   H = hold (up - down), DD = down-to-down, UD = up-to-next-down (can be negative). */
+function computeFeatures(down, up) {
+  const out = [];
+  for (let i = 0; i < SEQ.length; i++) {
+    out.push(round4((up[i] - down[i]) / 1000));
+    if (i < SEQ.length - 1) {
+      out.push(round4((down[i + 1] - down[i]) / 1000));
+      out.push(round4((down[i + 1] - up[i]) / 1000));
+    }
+  }
+  return out;
+}
+function round4(x) { return Math.round(x * 10000) / 10000; }
+
+function toCSV(rows) {        // rows: [{subject, sessionIndex, rep, f:[31]}]
+  const lines = [CSV_HEADER.join(",")];
+  for (const r of rows) lines.push([r.subject, r.sessionIndex, r.rep, ...r.f].join(","));
+  return lines.join("\n") + "\n";
+}
+function docToRows(doc) {      // stored participant document -> CSV rows
+  const rows = [];
+  for (const s of (doc.sessions || [])) {
+    s.reps.forEach((f, i) => rows.push({ subject: doc.username, sessionIndex: s.sessionIndex, rep: i + 1, f }));
+  }
+  return rows;
+}
+
+/* ------------------------------------------------------------------
+   Page state
+   ------------------------------------------------------------------ */
+const $ = (id) => document.getElementById(id);
+const state = {
+  db: null, user: null, uid: null, canWrite: null, isOwner: false,
+  mode: "checking",            // "db" | "local"
+  record: null,                // { username, sessions:[{sessionIndex, startedAt, submittedAt, reps:[[31]]}] }
+  reps: [],                    // typings of the current session
+  sessionIndex: 1,
+  startedAt: null,
+};
+
+/* Local copy (one browser only) - used for the download fallback. */
+function localKey(u) { return "typing-study:" + u.toLowerCase(); }
+function loadLocal(u) { try { return JSON.parse(localStorage.getItem(localKey(u)) || "null"); } catch (e) { return null; } }
+function saveLocal(rec) { try { localStorage.setItem(localKey(rec.username), JSON.stringify(rec)); } catch (e) {} }
+function rememberName(u) { try { localStorage.setItem("typing-study:last", u); } catch (e) {} }
+function lastName() { try { return localStorage.getItem("typing-study:last") || ""; } catch (e) { return ""; } }
+
+/* ------------------------------------------------------------------
+   Platform capabilities (database, who is viewing, downloads)
+   ------------------------------------------------------------------ */
+let platformReady;
+async function initPlatform() {
+  const use = (typeof window.claude === "object" && window.claude && typeof window.claude.use === "function")
+    ? (n) => window.claude.use(n) : null;
+  if (!use) { setMode("local"); return; }
+  try {
+    const [db, user] = await Promise.all([use("db"), use("user")]);
+    state.user = user;
+    state.isOwner = user ? !!user.isOwner() : false;
+    state.uid = user ? await user.id() : null;
+    const can = user ? user.can("data.write") : null;
+    state.canWrite = (can === null || can === undefined) ? null : !!can;
+    if (db && state.uid && state.canWrite !== false) { state.db = db; setMode("db"); }
+    else setMode("local");
+    if (state.isOwner && db) { state.db = db; showOwner(); }
+  } catch (e) { setMode("local"); }
+}
+
+function setMode(m) {
+  state.mode = m;
+  const n = $("storage-note");
+  if (m === "db") {
+    n.className = "store ok";
+    n.textContent = "Your records are saved automatically when you press Submit session.";
+  } else {
+    n.className = "store warn";
+    n.textContent = "Records are kept in this browser. After each session you will download a file to send to the researcher.";
+  }
+}
+
+/* ------------------------------------------------------------------
+   Loading a participant's record
+   ------------------------------------------------------------------ */
+function cleanName(s) { return s.trim().replace(/[^A-Za-z0-9_.-]/g, "").slice(0, 30); }
+
+async function loadRecord(username) {
+  let rec = null;
+  if (state.mode === "db") {
+    try {
+      const snap = await withTimeout(state.db.doc("sessions/" + state.uid).get(), 10000);
+      if (snap.exists) rec = structuredClone(snap.data());
+    } catch (e) { /* fall through to local copy */ }
+  }
+  if (!rec) rec = loadLocal(username);
+  if (!rec) rec = { username, sessions: [] };
+  return rec;
+}
+function withTimeout(p, ms) {
+  return Promise.race([p, new Promise((_, rej) => setTimeout(() => rej({ code: "timeout" }), ms))]);
+}
+
+function renderSessions() {
+  const done = state.record ? state.record.sessions : [];
+  const fmt = (s) => new Date(s.submittedAt).toLocaleDateString(undefined, { weekday: "short", day: "numeric", month: "short" });
+  $("sessions").textContent = `Sessions completed: ${done.length} of ${SESSIONS}` +
+    (done.length ? ` (${done.map(fmt).join(", ")})` : "");
+}
+
+/* ------------------------------------------------------------------
+   Starting a session
+   ------------------------------------------------------------------ */
+// The session starts when the username is confirmed: Enter, leaving the box, or clicking the password box.
+$("username").addEventListener("keydown", (e) => { if (e.key === "Enter") { e.preventDefault(); startSession(); } });
+$("username").addEventListener("change", startSession);
+$("username").addEventListener("input", () => { if (!state.record || state.record.sessions.length < SESSIONS) pw.disabled = false; });
+
+let starting = false;
+let alertName = "";
+async function startSession() {
+  if (starting || $("username").disabled) return;
+  const name = cleanName($("username").value);
+  $("username").value = name;
+  if (!name) { feedback("Enter your username first (letters, numbers, . _ - only).", "err"); $("username").focus(); return; }
+  starting = true;
+  feedback("Loading…", "info");
+  await platformReady;
+  state.record = await loadRecord(name);
+  starting = false;
+  if (state.record.username && state.record.username !== name && state.mode === "db") {
+    // this Claude account already has a record under another username
+    alertName = `This account already has sessions as "${state.record.username}", so that username is used. `;
+    $("username").value = state.record.username;
+  }
+  rememberName(state.record.username);
+  if (alertName) { feedback(alertName, "warn"); alertName = ""; }
+  renderSessions();
+  const done = state.record.sessions.length;
+  if (done >= SESSIONS) {
+    note("You've already completed all 5 sessions. Thank you!", "done");
+    pw.disabled = true;
+    if (state.mode === "local") showExport();
+    return;
+  }
+  const last = state.record.sessions[done - 1];
+  const tooSoon = last && (Date.now() - Date.parse(last.submittedAt)) / 36e5 < MIN_HOURS_BETWEEN;
+  state.sessionIndex = done + 1;
+  state.reps = [];
+  state.startedAt = new Date().toISOString();
+  $("username").disabled = true;
+  renderCount();
+  pw.disabled = false;
+  resetAttempt(tooSoon
+    ? "Your last session was less than 12 hours ago. Sessions should be on different days, so if you can, please come back tomorrow."
+    : `Ready for session ${state.sessionIndex}. Type the password and press Enter.`, tooSoon ? "warn" : "ok");
+  pw.focus();
+}
+function note(msg, kind) { feedback(msg, kind); }
+
+/* ------------------------------------------------------------------
+   Keystroke capture for one typing of the password
+   ------------------------------------------------------------------ */
+const pw = $("pw");
+let att = null;   // current attempt
+
+function newAttempt() {
+  return { n: 0, down: [], up: [], codeToPos: {}, enterDown: false, failed: false, timer: null };
+}
+function resetAttempt(msg, kind) {
+  if (att && att.timer) clearTimeout(att.timer);
+  att = newAttempt();
+  pw.value = "";
+  renderLiveKeys();
+  if (msg) feedback(msg, kind || "info");
+}
+function failAttempt(msg) {
+  // Mark the key that went wrong, then start again once the keys are released.
+  if (att.failed) return;
+  att.failed = true;
+  renderLiveKeys(att.n);
+  feedback(msg + " That attempt was not counted. Type it again.", "bad");
+  setTimeout(() => { if (att.failed) resetAttempt(); }, 600);
+}
+const KIND = { good: "ok", bad: "err", warn: "warn", info: "info", ok: "ok", err: "err", done: "done" };
+function feedback(msg, kind) { const f = $("feedback"); f.className = "feedback " + (KIND[kind] || "info"); f.textContent = msg; }
+
+function renderLiveKeys() { /* no key display in this layout */ }
+
+const IGNORE = new Set(["Shift", "CapsLock"]);   // Shift is held for R but is not timed (as in CMU)
+
+pw.addEventListener("focus", () => { if (!$("username").disabled) startSession(); });
+pw.addEventListener("keydown", (e) => {
+  if (!$("username").disabled) { e.preventDefault(); startSession(); return; }   // session not started yet
+  if (state.reps.length >= REPS_PER_SESSION) { e.preventDefault(); return; }
+  if (e.isComposing) return;
+  if (IGNORE.has(e.key)) return;
+  const t = e.timeStamp;
+  if (att.failed) { e.preventDefault(); return; }
+  if (e.repeat) { e.preventDefault(); failAttempt("A key was held down long enough to repeat."); return; }
+  if (e.key === "Unidentified" || e.key === "Process") {
+    e.preventDefault(); failAttempt("Your keyboard did not report the key. Please use a physical keyboard."); return;
+  }
+  const pos = att.n;
+  const want = SEQ[pos];
+  if (!want) { e.preventDefault(); return; }
+  if (e.ctrlKey || e.metaKey || e.altKey) { e.preventDefault(); failAttempt("Shortcut keys are not allowed."); return; }
+  if (e.key === "Backspace" || e.key === "Delete") { e.preventDefault(); failAttempt("Corrections are not counted."); return; }
+  if (e.key !== want.key) {
+    e.preventDefault();
+    if (want.key === "R" && e.key === "r") failAttempt("The R must be a capital (hold Shift).");
+    else if (e.getModifierState && e.getModifierState("CapsLock")) failAttempt("Caps Lock is on. Please turn it off and use Shift for the R.");
+    else if (want.key === "Enter") failAttempt("Press Enter straight after the l.");
+    else failAttempt(`Expected "${want.key}" but got "${e.key.length === 1 ? e.key : e.key}".`);
+    return;
+  }
+  if (want.key === "R" && e.getModifierState && e.getModifierState("CapsLock")) {
+    e.preventDefault(); failAttempt("Caps Lock is on. Please turn it off and use Shift for the R."); return;
+  }
+  att.down[pos] = t;
+  att.codeToPos[e.code || ("k" + pos)] = pos;
+  att.n++;
+  if (want.key === "Enter") {
+    e.preventDefault();
+    att.enterDown = true;
+    if (pw.value !== PASSWORD) { failAttempt("The text in the box was not exactly .tie5Roanl."); return; }
+    // safety net: if a key-up never arrives (e.g. focus lost), discard this typing
+    att.timer = setTimeout(() => { if (!att.failed) failAttempt("A key release was missed."); }, 2000);
+  }
+  renderLiveKeys();
+});
+
+pw.addEventListener("keyup", (e) => {
+  if (!att || att.failed) return;
+  if (IGNORE.has(e.key)) return;
+  const pos = att.codeToPos[e.code || ""];
+  if (pos === undefined) return;
+  delete att.codeToPos[e.code];
+  if (att.up[pos] === undefined) att.up[pos] = e.timeStamp;
+  renderLiveKeys();
+  if (att.enterDown && att.up.filter((x) => x !== undefined).length === SEQ.length) finishAttempt();
+});
+
+pw.addEventListener("paste", (e) => { e.preventDefault(); failAttempt("Pasting is not counted."); });
+pw.addEventListener("drop", (e) => { e.preventDefault(); });
+pw.addEventListener("input", (e) => {
+  if (e.inputType && /^insertFrom|insertReplacementText/.test(e.inputType)) failAttempt("Autofill or pasting is not counted.");
+});
+pw.addEventListener("blur", () => { if (att && att.n > 0 && !att.failed) resetAttempt("You clicked away during an attempt, so it was not counted. Click in the box and type it again.", "warn"); });
+
+function finishAttempt() {
+  clearTimeout(att.timer);
+  for (let i = 0; i < SEQ.length; i++) {
+    if (att.down[i] === undefined || att.up[i] === undefined) { failAttempt("A key was missed."); return; }
+  }
+  const f = computeFeatures(att.down, att.up);
+  if (f.some((x) => !Number.isFinite(x))) { failAttempt("The timing could not be read."); return; }
+  state.reps.push(f);
+  renderCount();
+  if (state.reps.length >= REPS_PER_SESSION) {
+    resetAttempt(`Session ${state.sessionIndex}: all 20 records done. Press Submit session to save them.`, "done");
+    pw.disabled = true;
+    $("submit").disabled = false;
+    $("submit").focus();
+  } else {
+    resetAttempt(`Record ${state.reps.length} saved for session ${state.sessionIndex}. Keep going.`, "ok");
+  }
+}
+
+function renderCount() {
+  $("dayLabel").textContent = state.record ? `Session ${state.sessionIndex}, Number of records: ` : "Session — , Number of records: ";
+  $("count").textContent = `${state.reps.length} / ${REPS_PER_SESSION}`;
+  $("barFill").style.width = Math.min(100, state.reps.length / REPS_PER_SESSION * 100) + "%";
+}
+
+$("restart").addEventListener("click", () => {
+  state.reps = [];
+  renderCount();
+  $("submit").disabled = true;
+  if (!state.record) return;
+  pw.disabled = false;
+  $("username").disabled = false;   // allows fixing a mistyped username
+  resetAttempt("Session restarted. Type the password 20 times.", "info");
+  pw.focus();
+});
+
+/* ------------------------------------------------------------------
+   Submitting a session
+   ------------------------------------------------------------------ */
+$("submit").addEventListener("click", submitSession);
+
+async function submitSession() {
+  if (state.reps.length < REPS_PER_SESSION) return;
+  $("submit").disabled = true;
+  feedback("Saving…", "info");
+  const session = {
+    sessionIndex: state.sessionIndex,
+    startedAt: state.startedAt,
+    submittedAt: new Date().toISOString(),
+    reps: state.reps.slice(),
+  };
+  const rec = structuredClone(state.record);
+  rec.sessions = rec.sessions.filter((s) => s.sessionIndex !== session.sessionIndex).concat([session]);
+  rec.sessions.sort((a, b) => a.sessionIndex - b.sessionIndex);
+  rec.username = rec.username || cleanName($("username").value);
+  rec.features = FEATURES;                // column names, for reference
+  rec.updatedAt = session.submittedAt;
+  saveLocal(rec);                         // always keep a local copy in this browser
+
+  let saved = false;
+  if (state.mode === "db") {
+    try {
+      await saveWithRetry(() => state.db.doc("sessions/" + state.uid).set(rec));
+      saved = true;
+    } catch (e) {
+      setMode("local");
+    }
+  }
+  state.record = rec;
+  state.reps = [];
+  renderSessions();
+  $("count").textContent = `${REPS_PER_SESSION} / ${REPS_PER_SESSION}`;   // the finished session stays full
+  $("barFill").style.width = "100%";
+  pw.disabled = true;
+  $("username").disabled = false;
+  const left = SESSIONS - rec.sessions.length;
+  const next = left > 0 ? ` Come back tomorrow for session ${rec.sessions.length + 1} (${left} left).`
+                        : " That was your last session. Thank you for taking part!";
+  if (saved) {
+    note(`Session ${session.sessionIndex} complete and saved.${next}`, "done");
+  } else {
+    note(`Session ${session.sessionIndex} complete.${next} Please download the file below and send it to the researcher.`, "done");
+    showExport();
+  }
+  if (state.isOwner) refreshOwner();
+}
+async function saveWithRetry(fn) {
+  try { return await fn(); }
+  catch (e) {
+    if (e && e.code === "unavailable") { await new Promise((r) => setTimeout(r, 800 + Math.random() * 800)); return fn(); }
+    throw e;
+  }
+}
+
+/* ------------------------------------------------------------------
+   Export (participant fallback, and researcher view)
+   ------------------------------------------------------------------ */
+function showExport() {
+  $("export-card").classList.remove("hidden");
+  $("csv-mine").value = toCSV(docToRows(state.record));
+}
+$("dl-mine").addEventListener("click", () => saveFile(`typing_${state.record.username}.csv`, $("csv-mine").value, $("dl-mine")));
+$("copy-mine").addEventListener("click", () => copyText($("csv-mine"), $("copy-mine")));
+$("dl-all").addEventListener("click", () => saveFile("typing_study_all.csv", $("csv-all").value, $("dl-all")));
+$("copy-all").addEventListener("click", () => copyText($("csv-all"), $("copy-all")));
+
+async function saveFile(name, text, btn) {
+  const use = (typeof window.claude === "object" && window.claude && typeof window.claude.use === "function") ? window.claude.use : null;
+  if (use) {
+    try {
+      const dl = await use("downloads");
+      if (dl) { await dl.save({ filename: name, data: text }); return; }
+    } catch (e) { /* declined or unavailable: fall back */ }
+  }
+  try {
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(new Blob([text], { type: "text/csv" }));
+    a.download = name;
+    document.body.append(a); a.click(); a.remove();
+  } catch (e) {}
+  flash(btn, "If no file appeared, use Copy");
+}
+async function copyText(area, btn) {
+  try { await navigator.clipboard.writeText(area.value); flash(btn, "Copied"); }
+  catch (e) { area.focus(); area.select(); flash(btn, "Press Ctrl+C to copy"); }
+}
+function flash(btn, msg) { const t = btn.textContent; btn.textContent = msg; setTimeout(() => (btn.textContent = t), 2200); }
+
+function showOwner() {
+  $("owner-card").classList.remove("hidden");
+  refreshOwner();
+}
+async function refreshOwner() {
+  const body = $("owner-rows");
+  try {
+    const snap = await withTimeout(state.db.collection("sessions").get(), 10000);
+    const docs = snap.docs.map((d) => d.data()).filter(Boolean);
+    body.innerHTML = "";
+    if (!docs.length) { body.innerHTML = '<tr><td colspan="4">No sessions submitted yet.</td></tr>'; }
+    let rows = [];
+    for (const d of docs.sort((a, b) => String(a.username).localeCompare(String(b.username)))) {
+      const tr = document.createElement("tr");
+      const last = d.sessions && d.sessions.length ? new Date(d.sessions[d.sessions.length - 1].submittedAt).toLocaleString() : "-";
+      const reps = (d.sessions || []).reduce((n, s) => n + s.reps.length, 0);
+      [d.username, `${(d.sessions || []).length} / ${SESSIONS}`, reps, last].forEach((v, i) => {
+        const td = document.createElement("td"); td.textContent = v; if (i > 0 && i < 3) td.className = "num"; tr.append(td);
+      });
+      body.append(tr);
+      rows = rows.concat(docToRows(d));
+    }
+    $("csv-all").value = toCSV(rows);
+  } catch (e) {
+    body.innerHTML = '<tr><td colspan="4">The study database could not be reached. Try again later.</td></tr>';
+  }
+}
+
+/* ------------------------------------------------------------------
+   Start-up
+   ------------------------------------------------------------------ */
+$("username").value = lastName();
+renderSessions();
+renderCount();
+att = newAttempt();
+platformReady = initPlatform();
+</script>
+</body>
+</html>
